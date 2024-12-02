@@ -1,14 +1,13 @@
-
 # Comprehensive Reference Guide for Function Calling with Betalgo.Ranul.OpenAI
 
-This guide explains how to use function calling with the Betalgo.Ranul.OpenAI library, including defining functions, using them in chat completions, handling tool calls, and managing iterative interactions. It incorporates best practices and advanced scenarios such as handling multi-tool calls, stream completions, and JSON schema integration.
+This enhanced guide explains how to use function calling with the Betalgo.Ranul.OpenAI library, integrating advanced knowledge about `PropertyDefinition` types. It includes defining functions, using them in chat completions, handling tool calls, and managing iterative interactions.
 
 ---
 
 ## 1. Defining Functions and Tools
 
 ### Function Definition
-Functions are defined using `FunctionDefinitionBuilder` and describe the behavior and parameters for external interactions.
+Functions are defined using `FunctionDefinitionBuilder` and describe the behavior and parameters for external interactions. Use `PropertyDefinition` for parameter specification.
 
 ```csharp
 var function = new FunctionDefinitionBuilder("get_current_weather", "Get the current weather")
@@ -27,7 +26,72 @@ var tool = ToolDefinition.DefineFunction(function);
 
 ---
 
-## 2. Using Tools in Chat Completions
+## 2. Property Types in `PropertyDefinition`
+
+The `PropertyDefinition` class allows defining function parameters using JSON Schema properties.
+
+### Available Types
+- **String**: Represents a string value.
+  ```csharp
+  PropertyDefinition.DefineString("A string parameter description");
+  ```
+
+- **Integer**: Represents an integer value.
+  ```csharp
+  PropertyDefinition.DefineInteger("An integer parameter description");
+  ```
+
+- **Number**: Represents a numerical value (integer or floating-point).
+  ```csharp
+  PropertyDefinition.DefineNumber("A numeric parameter description");
+  ```
+
+- **Boolean**: Represents a boolean value (true/false).
+  ```csharp
+  PropertyDefinition.DefineBoolean("A boolean parameter description");
+  ```
+
+- **Array**: Represents an array with a specified item type.
+  ```csharp
+  PropertyDefinition.DefineArray(PropertyDefinition.DefineString("Array item description"));
+  ```
+
+- **Object**: Represents a complex object with nested properties.
+  ```csharp
+  PropertyDefinition.DefineObject(
+      new Dictionary<string, PropertyDefinition>
+      {
+          { "key1", PropertyDefinition.DefineString("String property description") },
+          { "key2", PropertyDefinition.DefineInteger("Integer property description") }
+      },
+      new List<string> { "key1" }, // Required properties
+      true, // Additional properties allowed
+      "An object parameter description",
+      null // No enum restriction
+  );
+  ```
+
+- **Null**: Represents a null value.
+  ```csharp
+  PropertyDefinition.DefineNull("A null parameter description");
+  ```
+
+- **Enum**: Represents a string with predefined values.
+  ```csharp
+  PropertyDefinition.DefineEnum(new List<string> { "value1", "value2" }, "Enum parameter description");
+  ```
+
+### Additional Properties
+- **Properties**: Nested property definitions for objects.
+- **Required**: Specifies required fields in an object.
+- **AdditionalProperties**: Determines if additional fields are allowed in an object (default: true).
+- **Enum**: Specifies allowed values for the parameter.
+- **MinProperties/MaxProperties**: Restricts the number of properties for objects.
+- **Items**: Specifies the item type for arrays.
+
+---
+
+## 3. Using Tools in Chat Completions
 
 ### Adding Tools to a Chat Completion
 Include tools in the `Tools` property of the chat completion request. Optionally, use `ToolChoice` to enforce a specific function or allow automatic selection.
@@ -48,10 +112,10 @@ var request = new ChatCompletionCreateRequest
 
 ---
 
-## 3. Handling Tool Calls in Responses
+## 4. Handling Tool Calls in Responses
 
 ### Extracting Tool Calls
-After sending a chat completion request, check if a tool call is present in the response.
+Check if a tool call is present in the response.
 
 ```csharp
 var response = await sdk.ChatCompletion.CreateCompletion(request);
@@ -78,7 +142,7 @@ foreach (var arg in parsedArguments)
 
 ---
 
-## 4. Executing Functions and Adding Results
+## 5. Executing Functions and Adding Results
 
 ### Executing a Function
 Invoke the function based on the extracted arguments.
@@ -101,7 +165,7 @@ request.Messages.Add(new ChatMessage
 
 ---
 
-## 5. Managing Iterative Completions
+## 6. Managing Iterative Completions
 
 ### Iterating Until No Tools Are Called
 Send successive completions, adding results to the `Messages` list, until no more tool calls are present.
@@ -136,45 +200,7 @@ do
 
 ---
 
-## 6. Stream-Based Completions
-
-### Handling Stream Completions
-Use `CreateCompletionAsStream` for handling large responses or real-time interactions.
-
-```csharp
-var completionResult = sdk.ChatCompletion.CreateCompletionAsStream(request);
-
-await foreach (var completion in completionResult)
-{
-    if (completion.Successful)
-    {
-        Console.Write(completion.Choices.First().Message.Content);
-    }
-    else
-    {
-        Console.WriteLine($"{completion.Error?.Code}: {completion.Error?.Message}");
-    }
-}
-```
-
----
-
-## 7. Multi-Tool Calls
-
-### Managing Concurrent Tools
-When multiple tools are called in a single response, handle each tool's result independently.
-
-```csharp
-foreach (var toolCall in message.ToolCalls)
-{
-    var functionResult = ExecuteFunction(toolCall.FunctionCall.Name, toolCall.FunctionCall.ParseArguments());
-    request.Messages.Add(ChatMessage.FromTool(functionResult, toolCall.Id!));
-}
-```
-
----
-
-## 8. JSON Schema Integration
+## 7. JSON Schema Integration
 
 ### Defining and Using JSON Schema
 Define a schema for structured outputs to enforce predictable response formats.
@@ -199,34 +225,13 @@ request.ResponseFormat = new()
 
 ---
 
-## 9. Best Practices
-
-### Error Handling
-- Detect and manage null or invalid responses to prevent runtime errors.
-- Validate function arguments and results before using them.
-
-### Usage Monitoring
-- Track token usage for optimization.
+## Best Practices
+- **Error Handling:** Validate function arguments and handle null responses gracefully.
+- **State Management:** Maintain `Messages` state between iterations.
+- **Monitoring Usage:** Track token usage for optimization.
 ```csharp
 Console.WriteLine($"Total tokens used: {completionResult.Usage?.TotalTokens}");
 ```
 
-### Multi-Turn Argument Aggregation
-- Combine fragmented arguments across iterations to ensure completeness.
-
----
-
-## Example Workflow
-
-1. Define functions and tools.
-2. Add tools to the chat request.
-3. Send the chat completion request.
-4. Handle tool calls by:
-   - Extracting and parsing arguments.
-   - Executing the function.
-   - Adding results to the conversation.
-5. Iterate until no tools are called.
-6. Optionally, integrate stream completions or JSON schemas.
-
-By following this guide, developers can leverage Betalgo.Ranul.OpenAI to build powerful, dynamic AI-driven applications.
+By incorporating these principles and `PropertyDefinition` knowledge, developers can build powerful and dynamic AI-driven applications using Betalgo.Ranul.OpenAI.
 ```

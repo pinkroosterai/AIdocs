@@ -2,13 +2,12 @@
 
 Tool calling is a powerful feature available in OpenAI API compatible APIs, allowing models like GPT-4o and Qwen2.5-Coder to interact with user-defined functions through structured outputs. 
 
-This capability enables developers to define specific tools that these models can intelligently invoke when appropriate during conversations, with the model generating the necessary parameters while leaving the actual function execution to the developer's code.  
+This capability enables developers to define specific tools that these models can intelligently invoke when appropriate during conversations, with the model generating the necessary parameters while leaving the actual function execution to the developers code. 
 
 The feature is particularly valuable for tasks requiring structured data extraction or integration with external systems, eliminating the need for complex prompt engineering techniques.
+
 ---
  
-
-
 ## 1. Defining Functions and Tools
 
 ### Function Definition

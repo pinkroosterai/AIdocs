@@ -89,7 +89,7 @@ Use the `PropertyDefinition` class to construct a JSON schema. This schema speci
 
 The `PropertyDefinition` class allows defining function parameters using JSON Schema properties.
 
-### Available Types
+**Available Types:**
 - **String**: Represents a string value.
   ```csharp
   PropertyDefinition.DefineString("A string parameter description");

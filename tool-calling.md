@@ -1,4 +1,4 @@
-```plaintext
+
 # Comprehensive Reference Guide for Function Calling with Betalgo.Ranul.OpenAI
 
 This guide explains how to use function calling with the Betalgo.Ranul.OpenAI library, including defining functions, using them in chat completions, handling tool calls, and managing iterative interactions. It incorporates best practices and advanced scenarios such as handling multi-tool calls, stream completions, and JSON schema integration.

@@ -1,8 +1,13 @@
-# Comprehensive Reference Guide for Function Calling with Betalgo.Ranul.OpenAI
+# Comprehensive Reference Guide for Tool Calling with Betalgo.Ranul.OpenAI
 
-This enhanced guide explains how to use function calling with the Betalgo.Ranul.OpenAI library, integrating advanced knowledge about `PropertyDefinition` types. It includes defining functions, using them in chat completions, handling tool calls, and managing iterative interactions.
+Tool calling is a powerful feature available in OpenAI API compatible APIs, allowing models like GPT-4o and Qwen2.5-Coder to interact with user-defined functions through structured outputs. 
 
+This capability enables developers to define specific tools that these models can intelligently invoke when appropriate during conversations, with the model generating the necessary parameters while leaving the actual function execution to the developer's code.  
+
+The feature is particularly valuable for tasks requiring structured data extraction or integration with external systems, eliminating the need for complex prompt engineering techniques.
 ---
+ 
+
 
 ## 1. Defining Functions and Tools
 
@@ -115,52 +120,53 @@ var request = new ChatCompletionCreateRequest
 ## 4. Handling Tool Calls in Responses
 
 ### Extracting Tool Calls
-Check if a tool call is present in the response.
+Check if a tool call is present in the response. The `ToolCalls` field in the response contains a list of all tools called by the model. Use `ChatMessage.FromTool(result, toolCall.Id)` to add the result of each tool invocation back into the conversation.
 
 ```csharp
 var response = await sdk.ChatCompletion.CreateCompletion(request);
 var message = response.Choices.First().Message;
 
-if (message.FunctionCall != null)
+if (message.ToolCalls != null)
 {
-    var functionName = message.FunctionCall.Name;
-    var functionArguments = message.FunctionCall.Arguments;
-    // Execute the function with the provided arguments
+    foreach (var toolCall in message.ToolCalls)
+    {
+        // Log the function call
+        var functionName = toolCall.FunctionCall.Name;
+        Console.WriteLine($"Function call: {functionName}");
+
+        // Process the function arguments
+        foreach (var entry in toolCall.FunctionCall.ParseArguments())
+        {
+            Console.WriteLine($"{entry.Key}: {entry.Value}");
+        }
+
+        // Add the tool result to the message history
+        var toolResult = ExecuteFunction(toolCall.FunctionCall.Name, toolCall.FunctionCall.ParseArguments());
+        request.Messages.Add(ChatMessage.FromTool(toolResult, toolCall.Id));
+    }
 }
 ```
 
-### Parsing Function Arguments
-Use `FunctionCall.ParseArguments()` to extract and validate arguments.
-
-```csharp
-var parsedArguments = message.FunctionCall.ParseArguments();
-foreach (var arg in parsedArguments)
-{
-    Console.WriteLine($"{arg.Key}: {arg.Value}");
-}
-```
+### Tool Calls in Response:
+- The response object’s `ToolCalls` field will contain tool calls that need to be executed.
+- Use `toolCall.FunctionCall.Name` to identify the function being called and `toolCall.FunctionCall.Arguments` to retrieve the required arguments.
 
 ---
 
 ## 5. Executing Functions and Adding Results
 
 ### Executing a Function
-Invoke the function based on the extracted arguments.
+Invoke the function based on the extracted arguments from the `ToolCall`.
 
 ```csharp
 var weatherInfo = GetWeatherInfo(parsedArguments);
 ```
 
 ### Adding Results to the Conversation
-Include the function's result in the `Messages` list as a tool message.
+Include the function's result in the `Messages` list as a tool message using `ChatMessage.FromTool(result, toolCall.Id)`.
 
 ```csharp
-request.Messages.Add(new ChatMessage
-{
-    Role = "function",
-    Name = message.FunctionCall.Name,
-    Content = weatherInfo
-});
+request.Messages.Add(ChatMessage.FromTool(weatherInfo, toolCall.Id));
 ```
 
 ---
@@ -179,17 +185,14 @@ do
 
     toolCalled = false;
 
-    if (message.FunctionCall != null)
+    if (message.ToolCalls != null)
     {
         toolCalled = true;
-        var functionResult = ExecuteFunction(message.FunctionCall.Name, message.FunctionCall.ParseArguments());
-
-        request.Messages.Add(new ChatMessage
+        foreach (var toolCall in message.ToolCalls)
         {
-            Role = "function",
-            Name = message.FunctionCall.Name,
-            Content = functionResult
-        });
+            var functionResult = ExecuteFunction(toolCall.FunctionCall.Name, toolCall.FunctionCall.ParseArguments());
+            request.Messages.Add(ChatMessage.FromTool(functionResult, toolCall.Id));
+        }
     }
     else
     {

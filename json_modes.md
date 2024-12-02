@@ -85,6 +85,61 @@ Structured Outputs in OpenAI’s API allow developers to define a strict JSON sc
 #### **2.1 Define the JSON Schema**
 Use the `PropertyDefinition` class to construct a JSON schema. This schema specifies the structure, types, and constraints of the response.
 
+#### **2.2 Property Types in `PropertyDefinition`**
+
+The `PropertyDefinition` class allows defining function parameters using JSON Schema properties.
+
+### Available Types
+- **String**: Represents a string value.
+  ```csharp
+  PropertyDefinition.DefineString("A string parameter description");
+  ```
+
+- **Integer**: Represents an integer value.
+  ```csharp
+  PropertyDefinition.DefineInteger("An integer parameter description");
+  ```
+
+- **Number**: Represents a numerical value (integer or floating-point).
+  ```csharp
+  PropertyDefinition.DefineNumber("A numeric parameter description");
+  ```
+
+- **Boolean**: Represents a boolean value (true/false).
+  ```csharp
+  PropertyDefinition.DefineBoolean("A boolean parameter description");
+  ```
+
+- **Array**: Represents an array with a specified item type.
+  ```csharp
+  PropertyDefinition.DefineArray(PropertyDefinition.DefineString("Array item description"));
+  ```
+
+- **Object**: Represents a complex object with nested properties.
+  ```csharp
+  PropertyDefinition.DefineObject(
+      new Dictionary<string, PropertyDefinition>
+      {
+          { "key1", PropertyDefinition.DefineString("String property description") },
+          { "key2", PropertyDefinition.DefineInteger("Integer property description") }
+      },
+      new List<string> { "key1" }, // Required properties
+      true, // Additional properties allowed
+      "An object parameter description",
+      null // No enum restriction
+  );
+  ```
+
+- **Null**: Represents a null value.
+  ```csharp
+  PropertyDefinition.DefineNull("A null parameter description");
+  ```
+
+- **Enum**: Represents a string with predefined values.
+  ```csharp
+  PropertyDefinition.DefineEnum(new List<string> { "value1", "value2" }, "Enum parameter description");
+  ```
+
 ##### Example: Defining a Mathematical Response Schema
 ```csharp
 var mathResponseSchema = PropertyDefinition.DefineObject(

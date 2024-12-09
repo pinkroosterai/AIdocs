@@ -197,6 +197,164 @@ Structured Outputs in OpenAI's API provide a robust mechanism for ensuring that 
 - **Use Case**: Structured Outputs can help manage safety and compliance by ensuring that responses adhere to predefined formats, especially in sensitive applications.
 - **Example**: Handling user-generated input that may require refusal for safety reasons, with the model indicating refusals distinctly [2].
 
+## FAQ
+Answers to the Most Important Questions Regarding Structured Outputs in Betalgo.Ranul.OpenAI
+
+1. Schema Construction
+
+How does DefineObject handle optional vs. required properties in complex schemas?
+
+DefineObject allows developers to define both required and optional properties explicitly:
+
+Required properties are listed in the required parameter of the schema definition, which is a list of property names that must be included in the object.
+
+Optional properties are not listed in the required array, but their schema definitions must still be included in the properties dictionary.
+
+
+Optional fields can also be emulated by defining a union type that includes null for the field. This allows the schema to accept the property as absent or explicitly set to null.
+
+Example:
+
+PropertyDefinition.DefineObject(
+    new Dictionary<string, PropertyDefinition>
+    {
+        { "requiredField", PropertyDefinition.DefineString("Required field description") },
+        { "optionalField", PropertyDefinition.DefineNull("Optional field description") }
+    },
+    new List<string> { "requiredField" }, // Only "requiredField" is mandatory
+    true, // Additional properties allowed
+    "Object with required and optional fields"
+);
+
+
+
+---
+
+2. Error Handling
+
+What are common errors when the model fails to adhere to a strict schema?
+
+Schema Limitations:
+
+Maximum 5 levels of nested objects.
+
+Maximum 100 properties in a schema.
+
+Violations of these limits result in errors like 413 Request Entity Too Large.
+
+
+Validation Failures:
+
+The model might fail to strictly follow the schema if:
+
+The prompt does not clearly align with the schema.
+
+The model generates unexpected or invalid responses (e.g., a string instead of an integer).
+
+
+
+Error Mitigation:
+
+Ensure schema complexity is minimized to stay within the limits.
+
+Use clear and concise prompts to help the model generate valid outputs.
+
+Implement fallback mechanisms for invalid or incomplete responses.
+
+
+
+
+---
+
+3. Prompt Design
+
+How detailed should the system prompt be to ensure the model outputs strictly adhere to the schema?
+
+Prompt Guidance:
+
+The prompt should briefly describe the purpose of the schema and the type of information expected.
+
+Explicitly mention the importance of adhering to the schema in the system message.
+
+
+Example Prompt:
+
+ChatMessage.FromSystem("You are an assistant that outputs JSON adhering to the provided schema. Follow the schema strictly without adding or omitting fields.")
+
+Prompt Simplification:
+
+The schema itself enforces adherence, so complex prompts are often unnecessary. However, reinforcing adherence helps minimize schema violations.
+
+
+
+
+---
+
+4. Model Behavior
+
+Does enabling strict: true increase model latency or reduce token limits for responses?
+
+Impact on Latency:
+
+Enabling strict: true introduces additional validation steps that slightly increase latency, as the system checks the output against the schema before returning the response.
+
+
+Impact on Token Limits:
+
+The schema itself does not directly reduce the token limit, but responses may become more concise when adhering to a strict format.
+
+
+Caching and Validation:
+
+The system caches schema artifacts at the organization level, improving validation efficiency over time.
+
+
+
+
+---
+
+5. Testing Outputs
+
+How can Structured Outputs be tested without making live API calls?
+
+Schema Testing Tools:
+
+Use the PropertyDefinitionGenerator.GenerateFromType() method to generate JSON schemas from C# types, enabling offline validation.
+
+Validate schemas with mock data using libraries like Newtonsoft.Json.Schema or System.Text.Json.
+
+
+Mocking Responses:
+
+Simulate API responses using test frameworks such as Moq to mock outputs adhering to the schema.
+
+
+Example Offline Testing Code:
+
+var schema = PropertyDefinitionGenerator.GenerateFromType<MyResponseType>();
+var mockResponse = "{ \"key\": \"value\" }"; // Mock JSON output
+var isValid = JsonSchemaValidator.Validate(mockResponse, schema);
+Console.WriteLine(isValid ? "Valid Response" : "Invalid Response");
+
+
+
+---
+
+Best Practices Summary
+
+Schema Design: Use DefineNull for optional fields and limit nested structures to stay within OpenAI's restrictions.
+
+Prompt Optimization: Keep prompts concise and schema-focused.
+
+Testing: Leverage schema generation tools and offline validation to reduce API testing costs.
+
+Error Handling: Implement fallback mechanisms and validate outputs rigorously.
+
+Performance Optimization: Use batch processing and respect API rate limits for better throughput.
+
+
+
+
 ## Conclusion
 
 Structured Outputs provide a powerful tool for managing workflows that require precise and reliable data formats. By enforcing schema adherence, they enable developers to build robust applications that integrate seamlessly with various systems and tools. These use cases illustrate the versatility and importance of Structured Outputs in modern application development.

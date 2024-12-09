@@ -1,4 +1,4 @@
-# Betalgo.Ranul.OpenAI Tool Calling...
+# Betalgo.Ranul.OpenAI Tool Calling and structured outputs
 
 The Betalgo.Ranul.OpenAI library offers a comprehensive framework for enabling tool calling with OpenAI-compatible models, allowing developers to define and integrate external functions seamlessly. This powerful feature supports structured data extraction, real-time information retrieval, workflow automation, and dynamic multi-turn conversations, making it an essential tool for building sophisticated AI-powered applications.
 
@@ -187,13 +187,6 @@ This conversion creates a callable tool that can be passed to the AI model. The 
 It's important to note that while the function definition describes the interface, the actual implementation of the function logic remains separate. This separation allows for flexibility in how the function is executed, whether it's a local method call, an API request, or any other form of computation [2](https://firebase.google.com/docs/genkit/tool-calling).
 
 By leveraging these building blocks, developers can create a rich set of tools that enable AI models to perform complex tasks, access external data sources, and integrate with existing systems seamlessly. The structured approach to function definition ensures that the AI model has clear guidelines on how to use each tool, improving the accuracy and reliability of tool calls in conversational AI applications.
-
-
----
-**Sources:**
-- [(1) object - JSON Schema](https://json-schema.org/understanding-json-schema/reference/object)
-- [(2) Tool calling | Genkit | Firebase - Google](https://firebase.google.com/docs/genkit/tool-calling)
-
 
 ## PropertyDefinition Parameter Specification
 The `PropertyDefinition` class in Betalgo.Ranul.OpenAI provides a powerful mechanism for specifying parameters in tool definitions, closely aligning with JSON Schema specifications. This alignment ensures compatibility with OpenAI's function calling feature and allows for precise control over parameter validation and structure.
@@ -576,3 +569,264 @@ By implementing these advanced techniques, developers can create AI applications
 - [(2) Decision Tree Software - FlowEQ](https://www.floweq.com/product/decision-tree-software)
 - [(3) Tool lookup during conversation #14962 - GitHub](https://github.com/langchain-ai/langchain/discussions/14962)
 - [(4) BFCL V3 • Multi-Turn & Multi-Step Function Calling - Gorilla LLM](https://gorilla.cs.berkeley.edu/blogs/13_bfcl_v3_multi_turn.html)
+
+
+## Structured Output Implementation
+Structured Outputs in Betalgo.Ranul.OpenAI 9.0.0 provide a powerful mechanism for ensuring AI model responses adhere to predefined JSON schemas. This feature is particularly useful for applications requiring precise data formatting and integration with existing systems. Here's an in-depth look at implementing Structured Outputs using the library:
+
+Implementation Details
+----------------------
+
+1.  Schema Definition:  
+    The `PropertyDefinition` class is central to defining schemas. It offers a fluent API for constructing complex JSON schemas:```csharp
+    var schema = PropertyDefinition.DefineObject(
+        new Dictionary
+        {
+            { "name", PropertyDefinition.DefineString("User's name") },
+            { "age", PropertyDefinition.DefineInteger("User's age") },
+            { "interests", PropertyDefinition.DefineArray(
+                PropertyDefinition.DefineString("An interest"),
+                minItems: 1,
+                maxItems: 5
+            )}
+        },
+        new List { "name", "age" },
+        false,
+        "User profile information"
+    );
+    ```
+    This example defines a schema for a user profile with required name and age fields, and an optional array of interests [1](https://github.com/betalgo/openai/wiki/Structured-Outputs).
+2.  Request Configuration:  
+    To use Structured Outputs, configure the `ChatCompletionCreateRequest` with a `ResponseFormat`:```csharp
+    var request = new ChatCompletionCreateRequest
+    {
+        Model = Models.Gpt_4o_2024_08_06,
+        Messages = new List
+        {
+            ChatMessage.FromSystem("Generate a user profile based on the given information."),
+            ChatMessage.FromUser("Create a profile for John, a 30-year-old who likes hiking and photography.")
+        },
+        ResponseFormat = new ResponseFormat
+        {
+            Type = StaticValues.CompletionStatics.ResponseFormat.JsonSchema,
+            JsonSchema = new JsonSchema
+            {
+                Name = "user_profile",
+                Strict = true,
+                Schema = schema
+            }
+        }
+    };
+    ```
+    Setting `Strict = true` ensures the model adheres strictly to the provided schema [2](https://platform.openai.com/docs/guides/structured-outputs).
+3.  Handling Responses:  
+    Process the structured response using `System.Text.Json`:```csharp
+    var result = await openAiService.ChatCompletion.CreateCompletion(request);
+    if (result.Successful)
+    {
+        var profile = JsonSerializer.Deserialize(result.Choices[0].Message.Content);
+        Console.WriteLine($"Name: {profile.Name}, Age: {profile.Age}");
+        Console.WriteLine($"Interests: {string.Join(", ", profile.Interests)}");
+    }
+    ```
+    
+
+Advanced Techniques
+-------------------
+
+1.  Nested Schemas:  
+    Betalgo.Ranul.OpenAI supports nested object definitions, allowing for complex data structures:```csharp
+    var addressSchema = PropertyDefinition.DefineObject(
+        new Dictionary
+        {
+            { "street", PropertyDefinition.DefineString("Street address") },
+            { "city", PropertyDefinition.DefineString("City name") },
+            { "zipCode", PropertyDefinition.DefineString("Zip code") }
+        },
+        new List { "street", "city", "zipCode" },
+        false,
+        "Address information"
+    );
+    
+    var userSchemaWithAddress = PropertyDefinition.DefineObject(
+        new Dictionary
+        {
+            { "name", PropertyDefinition.DefineString("User's name") },
+            { "address", addressSchema }
+        },
+        new List { "name", "address" },
+        false,
+        "User information with address"
+    );
+    ```
+    This approach allows for hierarchical data representation, useful in complex applications [3](https://json-schema.org/learn/getting-started-step-by-step).
+2.  Enum Constraints:  
+    Use `DefineEnum` to restrict string values to a predefined set:```csharp
+    var userTypeSchema = PropertyDefinition.DefineEnum(
+        new List { "regular", "premium", "admin" },
+        "User account type"
+    );
+    ```
+    This ensures the model only generates valid user types [4](https://docs.dndocs.com/n/Betalgo.OpenAI/8.6.1/api/OpenAI.ObjectModels.SharedModels.PropertyDefinition.html).
+3.  Numeric Constraints:  
+    Apply constraints to numeric fields for data validation:```csharp
+    var ageSchema = PropertyDefinition.DefineInteger(
+        "User's age",
+        minimum: 0,
+        maximum: 120
+    );
+    ```
+    This prevents the model from generating invalid age values [4](https://docs.dndocs.com/n/Betalgo.OpenAI/8.6.1/api/OpenAI.ObjectModels.SharedModels.PropertyDefinition.html).
+
+Best Practices
+--------------
+
+1.  Schema Complexity:  
+    Keep schemas as simple as possible while meeting your requirements. Complex schemas with deep nesting can increase processing time and the likelihood of errors [5](https://platform.openai.com/docs/guides/structured-outputs/introduction).
+2.  Error Handling:  
+    Implement robust error handling to manage cases where the model fails to adhere to the schema:```csharp
+    if (!result.Successful)
+    {
+        Console.WriteLine($"Error: {result.Error?.Message ?? "Unknown error"}");
+        // Implement fallback logic or retry mechanism
+    }
+    ```
+    
+3.  Testing:  
+    Utilize the `PropertyDefinitionGenerator` for offline schema testing:```csharp
+    var generatedSchema = PropertyDefinitionGenerator.GenerateFromType();
+    // Use generatedSchema for offline validation
+    ```
+    This approach allows for thorough testing without making API calls [6].
+4.  Performance Optimization:  
+    When dealing with large volumes of requests, consider batch processing and respect API rate limits to optimize performance [5](https://platform.openai.com/docs/guides/structured-outputs/introduction).
+
+By leveraging these advanced features and best practices, developers can create robust, schema-compliant AI integrations using Betalgo.Ranul.OpenAI 9.0.0. Structured Outputs provide a powerful tool for ensuring data consistency and reliability in AI-driven applications, particularly in scenarios requiring precise data formatting and seamless system integration.
+
+
+---
+**Sources:**
+- [(1) Structured Outputs · betalgo/openai Wiki - GitHub](https://github.com/betalgo/openai/wiki/Structured-Outputs)
+- [(2) Structured Outputs - OpenAI API](https://platform.openai.com/docs/guides/structured-outputs)
+- [(3) Creating your first schema - JSON Schema](https://json-schema.org/learn/getting-started-step-by-step)
+- [(4) Class PropertyDefinition | Betalgo.OpenAI 8.6.1 - DNDocs](https://docs.dndocs.com/n/Betalgo.OpenAI/8.6.1/api/OpenAI.ObjectModels.SharedModels.PropertyDefinition.html)
+- [(5) Structured Outputs - OpenAI Platform](https://platform.openai.com/docs/guides/structured-outputs/introduction)
+- [(6) Betalgo.OpenAI Structured Outputs - YouTube](https://www.youtube.com/embed/KoztI8qZass?autoplay=1&color=white&playsinline=true&enablejsapi=1&origin=https%3A%2F%2Fwww.perplexity.ai&widgetid=1)
+
+
+## Workflow-Driven Task Execution
+Workflow-driven structured outputs in Betalgo.Ranul.OpenAI enable precise task planning and execution by leveraging predefined schemas to guide AI responses. This approach ensures that each step of a workflow is clearly defined, executed, and validated against a structured format, enhancing reliability and integration with external systems.
+
+Workflow Planning with Structured Outputs
+-----------------------------------------
+
+1.  **Defining the Workflow Schema**:  
+    A workflow schema outlines the structure of tasks and their sequential or parallel dependencies. Using the `PropertyDefinition` class, developers can define workflows as nested objects or arrays representing steps, sub-steps, and expected outputs:```csharp
+    var workflowSchema = PropertyDefinition.DefineObject(
+        new Dictionary
+        {
+            { "task_name", PropertyDefinition.DefineString("Name of the task") },
+            { "steps", PropertyDefinition.DefineArray(
+                PropertyDefinition.DefineObject(
+                    new Dictionary
+                    {
+                        { "step_name", PropertyDefinition.DefineString("Name of the step") },
+                        { "status", PropertyDefinition.DefineEnum(new[] { "pending", "in_progress", "completed" }, "Status of the step") },
+                        { "output", PropertyDefinition.DefineString("Output of the step") }
+                    },
+                    new List { "step_name", "status" },
+                    false,
+                    "Details of a workflow step"
+                )
+            )}
+        },
+        new List { "task_name", "steps" },
+        false,
+        "Workflow structure with tasks and steps"
+    );
+    ```
+    This schema ensures that each task contains a list of steps with a defined name, status, and optional output.
+2.  **Configuring the Task Execution Request**:  
+    To execute a workflow, configure a `ChatCompletionCreateRequest` with the defined schema for structured outputs:```csharp
+    var request = new ChatCompletionCreateRequest
+    {
+        Messages = new List
+        {
+            ChatMessage.FromSystem("You are an assistant that plans and executes tasks step by step."),
+            ChatMessage.FromUser("Plan a workflow for organizing a conference.")
+        },
+        Model = Models.Gpt_4o,
+        ResponseFormat = new ResponseFormat
+        {
+            Type = StaticValues.CompletionStatics.ResponseFormat.JsonSchema,
+            JsonSchema = new JsonSchema
+            {
+                Name = "conference_workflow",
+                Strict = true,
+                Schema = workflowSchema
+            }
+        }
+    };
+    ```
+    
+3.  **Executing Steps Dynamically**:  
+    As the model generates structured responses adhering to the workflow schema, developers can dynamically execute each step and update its status:```csharp
+    var result = await openAiService.ChatCompletion.CreateCompletion(request);
+    if (result.Successful)
+    {
+        var workflow = JsonSerializer.Deserialize(result.Choices.First().Message.Content);
+        foreach (var step in workflow.Steps)
+        {
+            Console.WriteLine($"Executing: {step.StepName}");
+            // Simulate execution
+            step.Status = "completed";
+            step.Output = $"Result of {step.StepName}";
+        }
+    }
+    ```
+    
+4.  **Iterative Updates**:  
+    Update the AI model with progress after executing each step to maintain context and ensure coherent task management:```csharp
+    request.Messages.Add(ChatMessage.FromAssistant(JsonSerializer.Serialize(workflow)));
+    var updatedResult = await openAiService.ChatCompletion.CreateCompletion(request);
+    ```
+    
+
+Advanced Use Cases
+------------------
+
+1.  **Parallel Task Execution**:  
+    Define workflows with parallel steps using additional metadata to indicate concurrency:```csharp
+    { 
+        "step_name": "Book Venue",
+        "parallel": true,
+        "dependencies": ["Research Venues"]
+    }
+    ```
+    
+2.  **Error Handling in Workflows**:  
+    Incorporate error states into the schema to manage failures gracefully:```csharp
+    { 
+        "status": ["pending", "in_progress", "completed", "error"],
+        "error_message": PropertyDefinition.DefineString("Error details if any")
+    }
+    ```
+    
+3.  **Dynamic Workflow Adjustments**:  
+    Allow real-time modifications to workflows by enabling users to add or reorder steps during execution. The schema can include an `editable` flag for flexibility.
+
+Best Practices
+--------------
+
+*   **Strict Schema Adherence**: Use `strict: true` to ensure all responses conform to the defined workflow structure, reducing errors during execution.
+*   **Incremental Updates**: Continuously update the model with task progress to maintain alignment between planned and executed workflows.
+*   **Testing**: Validate workflows offline using mock data and schema validation tools before deployment.
+
+By leveraging structured outputs for workflow-driven tasks, Betalgo.Ranul.OpenAI enables seamless planning, execution, and monitoring of complex processes while ensuring data consistency and adherence to predefined structures [1](https://tettra.com/article/workflows-vs-processes/) [2](https://js.langchain.com/docs/concepts/structured_outputs/) [3](https://www.leewayhertz.com/structured-outputs-in-llms/).
+
+
+---
+**Sources:**
+- [(1) Workflow vs Process: Which To Focus On? - Tettra](https://tettra.com/article/workflows-vs-processes/)
+- [(2) Structured outputs - LangChain.js](https://js.langchain.com/docs/concepts/structured_outputs/)
+- [(3) Structured outputs in LLMs: Definition, techniques, applications ...](https://www.leewayhertz.com/structured-outputs-in-llms/)

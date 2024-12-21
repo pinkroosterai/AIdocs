@@ -64,7 +64,7 @@ var chatRequest = new ChatCompletionCreateRequest
         ChatMessage.FromUser("What is 2 + 2?")
     },
     Tools = functionDefinitions,
-    Model = Models.Gpt_4_0613
+    Model = Models.Gpt_4o
 };
 ```
 
